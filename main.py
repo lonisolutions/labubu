@@ -28,18 +28,22 @@ OOS_TEXTS = {
 CHECK_INTERVAL = (2, 10)
 ALERT_SOUND = "alert.mp3"
 
-options = webdriver.ChromeOptions()
-options.add_argument("--headless")
-options.add_argument("--disable-gpu")
-options.add_argument("--log-level=3")
-ua = random.choice(
-    [
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64)…",
-        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)…",
-    ]
-)
-options.add_argument(f"user-agent={ua}")
-driver = webdriver.Chrome(options=options)
+
+def make_driver():
+    opts = webdriver.ChromeOptions()
+    opts.add_argument("--headless")
+    opts.add_argument("--disable-gpu")
+    opts.add_argument("--no-sandbox")
+    opts.add_argument("--disable-dev-shm-usage")
+    opts.add_argument("--log-level=3")
+    ua = random.choice(
+        [
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64)…",
+            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)…",
+        ]
+    )
+    opts.add_argument(f"user-agent={ua}")
+    return webdriver.Chrome(options=opts)
 
 
 def alert_and_wait():
@@ -99,10 +103,20 @@ def check_one(url):
 
 if __name__ == "__main__":
     print("Starting Labubu watcher ...")
+    driver = make_driver()
     try:
         while True:
             for link in URLS:
-                check_one(link)
+                try:
+                    check_one(link)
+                except Exception:
+                    print("[!] Browser session died—restarting driver…")
+                    try:
+                        driver.quit()
+                    except Exception:
+                        pass
+                    driver = make_driver()
+                    check_one(link)
                 time.sleep(random.uniform(1, 3))
             wait = random.uniform(*CHECK_INTERVAL)
             print(f"…waiting {int(wait)}s before next sweep…\n")
